@@ -1,6 +1,7 @@
 /**
  * WebRTC Screen Capture Module
  * Provides screen capture functionality using getDisplayMedia API
+ * Integrated with HandState extraction and metrics collection
  */
 
 class ScreenCapture {
@@ -9,6 +10,11 @@ class ScreenCapture {
         this.captureInterval = null;
         this.isCapturing = false;
         this.captureIntervalMs = 200;
+        this.frameCount = 0;
+        this.lastFpsTime = 0;
+        this.currentFps = 0;
+        this.lastLatency = 0;
+        this.handStateExtractor = null;
     }
 
     async startCapture() {
@@ -32,6 +38,14 @@ class ScreenCapture {
             };
 
             this.isCapturing = true;
+            this.frameCount = 0;
+            this.lastFpsTime = performance.now();
+            
+            if (typeof handStateExtractor !== 'undefined') {
+                this.handStateExtractor = handStateExtractor;
+                this.handStateExtractor.startNewHand();
+            }
+            
             console.log('Screen capture started');
 
             this.captureInterval = setInterval(() => {
@@ -66,9 +80,13 @@ class ScreenCapture {
         }
 
         this.isCapturing = false;
+        this.frameCount = 0;
+        this.currentFps = 0;
+        this.lastLatency = 0;
         console.log('Screen capture stopped');
 
         this.updateButtonStates();
+        this.updateMetricsDisplay();
     }
 
     captureFrame() {
@@ -76,7 +94,60 @@ class ScreenCapture {
             return;
         }
 
-        console.log('Frame captured');
+        this.frameCount++;
+        
+        const now = performance.now();
+        if (now - this.lastFpsTime >= 1000) {
+            this.currentFps = Math.round(this.frameCount * 1000 / (now - this.lastFpsTime));
+            this.frameCount = 0;
+            this.lastFpsTime = now;
+        }
+
+        if (this.handStateExtractor) {
+            const { handState, latency } = this.handStateExtractor.extractHandState();
+            this.lastLatency = latency;
+            
+            console.log(JSON.stringify(handState));
+            
+            this.updateHandStateDisplay(handState);
+            this.updateMetricsDisplay();
+        } else {
+            console.log('Frame captured (no HandState extractor)');
+        }
+    }
+
+    updateHandStateDisplay(handState) {
+        const elements = {
+            handId: document.getElementById('captureHandId'),
+            tableId: document.getElementById('captureTableId'),
+            street: document.getElementById('captureStreet'),
+            heroPos: document.getElementById('captureHeroPos'),
+            stack: document.getElementById('captureStack'),
+            pot: document.getElementById('capturePot'),
+            actionLine: document.getElementById('captureActionLine'),
+            timestamp: document.getElementById('captureTimestamp')
+        };
+
+        if (elements.handId) elements.handId.textContent = handState.hand_id;
+        if (elements.tableId) elements.tableId.textContent = handState.table_id;
+        if (elements.street) elements.street.textContent = handState.street;
+        if (elements.heroPos) elements.heroPos.textContent = handState.hero_pos;
+        if (elements.stack) elements.stack.textContent = handState.effective_stack_bb;
+        if (elements.pot) elements.pot.textContent = handState.pot_bb;
+        if (elements.actionLine) elements.actionLine.textContent = handState.action_line;
+        if (elements.timestamp) elements.timestamp.textContent = handState.timestamp;
+    }
+
+    updateMetricsDisplay() {
+        const fpsElement = document.getElementById('captureFps');
+        const latencyElement = document.getElementById('captureLatency');
+
+        if (fpsElement) {
+            fpsElement.textContent = this.isCapturing ? this.currentFps : '-';
+        }
+        if (latencyElement) {
+            latencyElement.textContent = this.isCapturing ? `${Math.round(this.lastLatency)} ms` : '-';
+        }
     }
 
     getIsCapturing() {
@@ -93,6 +164,14 @@ class ScreenCapture {
         if (stopBtn) {
             stopBtn.disabled = !this.isCapturing;
         }
+    }
+
+    getMetrics() {
+        return {
+            fps: this.currentFps,
+            capture_latency_ms: Math.round(this.lastLatency),
+            is_capturing: this.isCapturing
+        };
     }
 }
 
