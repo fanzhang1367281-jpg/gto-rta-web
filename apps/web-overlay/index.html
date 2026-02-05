@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTO Strategy Overlay</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        h1 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #00d4aa;
+        }
+        
+        .controls {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 600px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #a0a0a0;
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #00d4aa;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #00b894;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 600px;
+            min-height: 200px;
+        }
+        
+        .result h2 {
+            color: #00d4aa;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .advice-line {
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            color: #00d4aa;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .metric {
+            background: #0f3460;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #a0a0a0;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00d4aa;
+        }
+        
+        .actions {
+            margin-top: 15px;
+        }
+        
+        .action-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #0f3460;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        
+        .action-name {
+            font-weight: bold;
+        }
+        
+        .action-freq {
+            color: #00d4aa;
+        }
+        
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #00d4aa;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🃏 GTO Strategy Assistant</h1>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label>位置 (Position)</label>
+            <select id="position">
+                <option value="BTN">BTN (Button)</option>
+                <option value="SB">SB (Small Blind)</option>
+                <option value="BB">BB (Big Blind)</option>
+                <option value="UTG">UTG</option>
+                <option value="MP">MP</option>
+                <option value="CO">CO</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>有效筹码 (Stack BB)</label>
+            <select id="stack">
+                <option value="50">50 BB</option>
+                <option value="100" selected>100 BB</option>
+                <option value="150">150 BB</option>
+                <option value="200">200 BB</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>底池 (Pot BB)</label>
+            <input type="number" id="pot" value="1.5" min="0" max="100" step="0.5">
+        </div>
+        
+        <button id="queryBtn" onclick="queryStrategy()">获取策略建议</button>
+    </div>
+    
+    <div class="result" id="result">
+        <h2>策略建议</h2>
+        <div class="advice-line" id="adviceLine">
+            点击按钮获取建议
+        </div>
+        
+        <div class="actions" id="actions"></div>
+        
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-label">延迟 (ms)</div>
+                <div class="metric-value" id="latency">-</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">缓存</div>
+                <div class="metric-value" id="cache">-</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">置信度</div>
+                <div class="metric-value" id="confidence">-</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        
+        async function queryStrategy() {
+            const btn = document.getElementById('queryBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = '查询中...';
+            
+            const position = document.getElementById('position').value;
+            const stack = parseFloat(document.getElementById('stack').value);
+            const pot = parseFloat(document.getElementById('pot').value);
+            
+            const handState = {
+                hand_id: `hand_${Date.now()}`,
+                table_id: 'table_001',
+                street: 'preflop',
+                hero_pos: position,
+                effective_stack_bb: stack,
+                pot_bb: pot,
+                action_line: 'FOLD_FOLD_FOLD_FOLD'
+            };
+            
+            const startTime = performance.now();
+            
+            try {
+                const response = await fetch(`${API_BASE}/v1/strategy/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(handState)
+                });
+                
+                const e2eLatency = Math.round(performance.now() - startTime);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const advice = data.data;
+                    const bestAction = advice.actions.reduce((a, b) => a.ev > b.ev ? a : b);
+                    
+                    // 显示主建议
+                    document.getElementById('adviceLine').textContent = 
+                        `${position}: ${bestAction.action.toUpperCase()} (${Math.round(bestAction.frequency * 100)}%)`;
+                    
+                    // 显示所有动作
+                    const actionsHtml = advice.actions
+                        .sort((a, b) => b.frequency - a.frequency)
+                        .map(a => `
+                            <div class="action-item">
+                                <span class="action-name">${a.action}</span>
+                                <span class="action-freq">${Math.round(a.frequency * 100)}%</span>
+                            </div>
+                        `).join('');
+                    document.getElementById('actions').innerHTML = actionsHtml;
+                    
+                    // 显示指标
+                    document.getElementById('latency').textContent = e2eLatency;
+                    document.getElementById('cache').textContent = advice.cache_status;
+                    document.getElementById('confidence').textContent = Math.round(advice.confidence * 100) + '%';
+                    
+                    // 上报指标
+                    reportMetrics({
+                        e2e_latency_ms: e2eLatency,
+                        redis_hit_rate: advice.cache_status === 'hit' ? 1 : 0,
+                        unsupported_rate: 0
+                    });
+                } else {
+                    document.getElementById('adviceLine').textContent = '查询失败';
+                }
+            } catch (error) {
+                document.getElementById('adviceLine').textContent = 'API连接失败';
+                console.error(error);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '获取策略建议';
+        }
+        
+        // 简单的指标上报（模拟）
+        function reportMetrics(metrics) {
+            console.log('📊 Metrics:', metrics);
+        }
+        
+        // 页面加载时获取指标
+        async function loadMetrics() {
+            try {
+                const response = await fetch(`${API_BASE}/metrics`);
+                const data = await response.json();
+                console.log('📈 Server Metrics:', data);
+            } catch (e) {
+                console.log('Metrics endpoint not available');
+            }
+        }
+        
+        loadMetrics();
+    </script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+[global]
+# 清华镜像加速
+index-url = https://pypi.tuna.tsinghua.edu.cn/simple
+trusted-host = pypi.tuna.tsinghua.edu.cn
+
+# 性能优化
+timeout = 120
+retries = 5
+
+# 缓存设置
+cache-dir = ~/.cache/pip
+no-cache-dir = false
+
+[install]
+# 优先使用wheel（避免源码编译）
+prefer-binary = true
+
+# 依赖解析策略
+upgrade-strategy = only-if-needed
+
+[list]
+format = columns
+
+[freeze]
+timeout = 10
