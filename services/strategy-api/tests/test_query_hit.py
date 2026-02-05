@@ -2,10 +2,14 @@
 测试: 缓存命中场景
 验证: Redis中存在策略数据时，API正确返回
 """
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pytest
 import json
-from fastapi.testclient import TestClient
 from main import app, strategy_db
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
@@ -13,7 +17,7 @@ def test_query_hit():
     """测试缓存命中 - 已知策略场景"""
     # 准备: 确保策略数据在内存中
     test_fingerprint = "preflop|BTN|100|FOLD_FOLD_FOLD_FOLD"
-    strategy_db[f"strat:v0.1:{test_fingerprint}"] = {
+    strategy_db[f"strat:v0.1.0:{test_fingerprint}"] = {
         "actions": [
             {"action": "raise_2.5x", "frequency": 0.55, "ev": 3.2},
             {"action": "fold", "frequency": 0.45, "ev": 0.0}

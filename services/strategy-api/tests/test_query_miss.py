@@ -2,9 +2,13 @@
 测试: 缓存未命中场景
 验证: Redis中不存在策略数据时，返回fallback策略
 """
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pytest
-from fastapi.testclient import TestClient
 from main import app
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 

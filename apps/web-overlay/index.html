@@ -164,6 +164,29 @@
             color: #00d4aa;
             padding: 20px;
         }
+        
+        .capture-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .capture-controls button {
+            flex: 1;
+        }
+        
+        #stopCaptureBtn {
+            background: #e74c3c;
+            color: #fff;
+        }
+        
+        #stopCaptureBtn:hover {
+            background: #c0392b;
+        }
+        
+        #stopCaptureBtn:disabled {
+            background: #555;
+        }
     </style>
 </head>
 <body>
@@ -198,6 +221,11 @@
         </div>
         
         <button id="queryBtn" onclick="queryStrategy()">获取策略建议</button>
+        
+        <div class="capture-controls">
+            <button id="startCaptureBtn" onclick="startCapture()">启动屏幕捕获</button>
+            <button id="stopCaptureBtn" onclick="stopCapture()" disabled>停止屏幕捕获</button>
+        </div>
     </div>
     
     <div class="result" id="result">
@@ -322,5 +350,6 @@
         
         loadMetrics();
     </script>
+    <script src="capture.js"></script>
 </body>
 </html>
