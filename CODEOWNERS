@@ -1,0 +1,19 @@
+# CODEOWNERS - 关键文件审批规则
+# 匹配规则的最后一行生效
+
+# 三层协作架构文件 - 必须由 Orchestrator 审批
+AGENTS.md @fanzhang1367281-jpg
+TASK_PLAN.md @fanzhang1367281-jpg
+RUN_REPORT.md @fanzhang1367281-jpg
+
+# 指标定义 - 影响 KPI 口径，必须审批
+docs/metrics.md @fanzhang1367281-jpg
+
+# API Schema / 接口契约 - 影响兼容性，必须审批
+services/strategy-api/main.py @fanzhang1367281-jpg
+
+# 版本策略 - 影响数据兼容性
+docs/version_strategy.md @fanzhang1367281-jpg
+
+# 其他文件可由自动化流程处理
+# * @github-actions[bot]
