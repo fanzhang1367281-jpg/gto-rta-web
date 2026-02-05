@@ -26,7 +26,7 @@
 
 ---
 
-### Layer B — Core Executor (Codex CLI / OpenCode)
+### Layer B — Core Executor (OpenCode / OpenCode)
 
 **职责**：
 - 核心主链路代码实现与本地验证（capture/api/cache/overlay）

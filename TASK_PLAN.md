@@ -21,11 +21,11 @@
 
 | ID | Task | OwnerAgent (A/B/C) | Scope(In) | Scope(Out) | DoD | Risk | ETA |
 |---|---|---|---|---|---|---|---|
-| T1 | WebRTC 屏幕捕获实现 | B(Codex CLI) | getDisplayMedia, 权限处理, 帧捕获 | 视频编码, 多屏幕选择 | 成功捕获屏幕, 控制台输出帧率 | 浏览器兼容性 | 2h |
-| T2 | HandState 简化提取 | B(Codex CLI) | 固定 hero_pos/stack, 模拟识别 | 真实OCR, 牌面识别 | 每200ms生成有效HandState JSON | 数据结构变更 | 1h |
-| T3 | 实时策略查询集成 | B(Codex CLI) | 前端调用API, 显示结果 | 缓存优化, 批量查询 | 成功获取并显示策略建议 | API延迟 | 1h |
-| T4 | 覆盖层渲染 | B(Codex CLI) | 显示一行建议文字 | 169格矩阵, 动画 | 文字正确显示在屏幕指定位置 | 定位准确性 | 1h |
-| T5 | 指标收集与上报 | B(Codex CLI) | e2e_latency_ms, hit_rate, unsupported_rate | 持久化存储, 可视化 | 控制台输出3项指标 | 精度问题 | 1h |
+| T1 | WebRTC 屏幕捕获实现 | B(OpenCode) | getDisplayMedia, 权限处理, 帧捕获 | 视频编码, 多屏幕选择 | 成功捕获屏幕, 控制台输出帧率 | 浏览器兼容性 | 2h |
+| T2 | HandState 简化提取 | B(OpenCode) | 固定 hero_pos/stack, 模拟识别 | 真实OCR, 牌面识别 | 每200ms生成有效HandState JSON | 数据结构变更 | 1h |
+| T3 | 实时策略查询集成 | B(OpenCode) | 前端调用API, 显示结果 | 缓存优化, 批量查询 | 成功获取并显示策略建议 | API延迟 | 1h |
+| T4 | 覆盖层渲染 | B(OpenCode) | 显示一行建议文字 | 169格矩阵, 动画 | 文字正确显示在屏幕指定位置 | 定位准确性 | 1h |
+| T5 | 指标收集与上报 | B(OpenCode) | e2e_latency_ms, hit_rate, unsupported_rate | 持久化存储, 可视化 | 控制台输出3项指标 | 精度问题 | 1h |
 | T6 | README 更新 | C(Copilot Agent) | 捕获功能说明, 启动步骤 | 架构文档修改 | PR合并 | - | 并行 |
 | T7 | 测试补全 | C(Copilot Agent) | 捕获单元测试 | 集成测试 | PR合并 | - | 并行 |
 
@@ -106,8 +106,8 @@ python benchmark.py
 | Artifact | Path | Owner |
 |---|---|---|
 | TASK_PLAN.md | `/TASK_PLAN.md` | A(OpenClaw) |
-| Capture Module | `apps/web-overlay/capture.js` | B(Codex CLI) |
-| Integration Code | `apps/web-overlay/app.js` | B(Codex CLI) |
+| Capture Module | `apps/web-overlay/capture.js` | B(OpenCode) |
+| Integration Code | `apps/web-overlay/app.js` | B(OpenCode) |
 | Tests | `apps/web-overlay/tests/` | C(Copilot) |
 | RUN_REPORT.md | `/RUN_REPORT.md` | A(OpenClaw) |
 

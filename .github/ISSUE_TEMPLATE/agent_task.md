@@ -11,7 +11,7 @@ assignees: []
 
 ## OwnerAgent
 - [ ] A OpenClaw (plan/orchestration only)
-- [ ] B Codex CLI (core implementation)
+- [ ] B OpenCode (core implementation)
 - [ ] C Copilot Coding Agent (parallel non-core)
 
 ## Scope
