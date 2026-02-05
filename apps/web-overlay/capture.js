@@ -107,9 +107,19 @@ class ScreenCapture {
             const { handState, latency } = this.handStateExtractor.extractHandState();
             this.lastLatency = latency;
             
-            console.log(JSON.stringify(handState));
+            // 契约检查：确保 HandState 有所有必需字段
+            const requiredFields = ['hand_id', 'table_id', 'street', 'hero_pos', 'effective_stack_bb', 'pot_bb', 'action_line', 'timestamp'];
+            const missingFields = requiredFields.filter(f => !(f in handState));
             
-            this.updateHandStateDisplay(handState);
+            if (missingFields.length > 0) {
+                console.error('HandState contract violation - missing fields:', missingFields);
+            } else {
+                // Console 和 UI 数据一致（同一对象）
+                const handStateJson = JSON.stringify(handState);
+                console.log(handStateJson);
+                this.updateHandStateDisplay(handState);
+            }
+            
             this.updateMetricsDisplay();
         } else {
             console.log('Frame captured (no HandState extractor)');
