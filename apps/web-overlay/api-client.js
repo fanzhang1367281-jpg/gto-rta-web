@@ -8,9 +8,11 @@ class ApiClient {
     this.baseUrl = baseUrl;
     this.timeoutMs = 5000; // 5秒超时
 
-    // 节流控制: 确保 API 请求间隔 ≥1s
+    // 节流控制: 确保 API 请求间隔 ≥1s (非阻塞实现)
     this.minQueryIntervalMs = 1000;
     this.lastQueryTime = 0;
+    this.lastResult = null; // 缓存上次结果
+    this.inFlightPromise = null; // single-flight: 当前在途请求
 
     // 指标追踪
     this.metrics = {
@@ -20,12 +22,14 @@ class ApiClient {
       totalLatencyMs: 0,
       lastLatencyMs: 0,
       lastError: null,
-      throttledRequests: 0, // 被节流的请求数
+      throttledRequests: 0, // 被节流的请求数 (跳过 + 复用)
+      skippedRequests: 0, // 因间隔太短被跳过的请求数
+      reusedRequests: 0, // 复用 in-flight 的请求数
     };
   }
 
   /**
-   * 查询策略建议
+   * 查询策略建议 (single-flight + 非阻塞节流)
    * @param {Object} handState - HandState 对象
    * @returns {Promise<Object>} 策略建议数据
    * @throws {Error} 网络错误、HTTP错误或超时
@@ -51,18 +55,40 @@ class ApiClient {
       throw error;
     }
 
-    // ===== 节流控制: 确保请求间隔 ≥1s =====
+    // ===== Single-Flight: 复用在途请求 =====
+    if (this.inFlightPromise) {
+      this.metrics.throttledRequests++;
+      this.metrics.reusedRequests++;
+      return this.inFlightPromise;
+    }
+
+    // ===== 非阻塞节流: 未到1s直接返回缓存结果 =====
     const now = performance.now();
     const elapsed = now - this.lastQueryTime;
-    if (elapsed < this.minQueryIntervalMs) {
-      const waitMs = this.minQueryIntervalMs - elapsed;
+    if (elapsed < this.minQueryIntervalMs && this.lastResult) {
       this.metrics.throttledRequests++;
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      this.metrics.skippedRequests++;
+      return Promise.resolve(this.lastResult);
     }
-    this.lastQueryTime = performance.now();
-    // ======================================
+    // ==========================================
 
+    // 创建实际请求 Promise
+    this.inFlightPromise = this._doQuery(handState);
+
+    // 请求完成后清理 inFlightPromise
+    this.inFlightPromise.finally(() => {
+      this.inFlightPromise = null;
+    });
+
+    return this.inFlightPromise;
+  }
+
+  /**
+   * 实际执行查询 (内部方法)
+   */
+  async _doQuery(handState) {
     this.metrics.totalRequests++;
+    this.lastQueryTime = performance.now();
     const startTime = performance.now();
 
     try {
@@ -127,12 +153,17 @@ class ApiClient {
       this.metrics.successfulRequests++;
       this.metrics.lastError = null;
 
-      return {
+      const result = {
         success: true,
         data: data.data,
         latencyMs: latencyMs,
         raw: data,
       };
+
+      // 缓存成功结果
+      this.lastResult = result;
+
+      return result;
     } catch (error) {
       this.metrics.failedRequests++;
 
@@ -185,6 +216,9 @@ class ApiClient {
       avgLatencyMs: avgLatency,
       lastLatencyMs: this.metrics.lastLatencyMs,
       lastError: this.metrics.lastError,
+      throttledRequests: this.metrics.throttledRequests,
+      skippedRequests: this.metrics.skippedRequests,
+      reusedRequests: this.metrics.reusedRequests,
     };
   }
 
@@ -199,7 +233,11 @@ class ApiClient {
       totalLatencyMs: 0,
       lastLatencyMs: 0,
       lastError: null,
+      throttledRequests: 0,
+      skippedRequests: 0,
+      reusedRequests: 0,
     };
+    this.lastResult = null;
   }
 }
 
