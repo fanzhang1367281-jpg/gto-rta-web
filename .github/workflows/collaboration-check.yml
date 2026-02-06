@@ -9,32 +9,32 @@ jobs:
   check-collaboration-traces:
     runs-on: ubuntu-latest
     name: Check PR Collaboration Traces
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Check PR Description for Required Fields
         uses: actions/github-script@v7
         with:
           script: |
             const pr = context.payload.pull_request;
             const body = pr.body || '';
-            
+
             const requiredFields = [
               { name: 'OwnerAgent', pattern: /##\s*OwnerAgent/i },
               { name: 'DoD', pattern: /##\s*DoD|Definition of Done/i },
               { name: 'Repro Steps', pattern: /##\s*Repro\s*Steps/i }
             ];
-            
+
             const missing = [];
-            
+
             for (const field of requiredFields) {
               if (!field.pattern.test(body)) {
                 missing.push(field.name);
               }
             }
-            
+
             if (missing.length > 0) {
               core.setFailed(`❌ PR 描述缺少必要的三层协作字段: ${missing.join(', ')}\n\n` +
                 `请使用 Issue 模板创建任务，或在 PR 描述中添加:\n` +
@@ -45,30 +45,30 @@ jobs:
             } else {
               console.log('✅ PR 包含所有必要的三层协作字段');
             }
-      
+
       - name: Check Branch Naming Convention
         run: |
           BRANCH_NAME="${{ github.head_ref }}"
           echo "检查分支名: $BRANCH_NAME"
-          
+
           if [[ ! "$BRANCH_NAME" =~ ^(feat|fix|chore|docs)/.+$ ]]; then
             echo "❌ 分支名不符合规范: $BRANCH_NAME"
             echo "   应使用: feat/*, fix/*, chore/*, docs/*"
             exit 1
           fi
-          
+
           echo "✅ 分支名符合规范"
-      
+
       - name: Check Conventional Commits
         run: |
           # 获取 PR 中的 commits
           git fetch origin ${{ github.base_ref }} --depth=1
-          COMMITS=$(git log --pretty=format:"%s" origin/${{ github.base_ref }}..HEAD)
-          
+          COMMITS=$(git log --pretty=format:"%s" --no-merges origin/${{ github.base_ref }}..HEAD)
+
           echo "检查提交信息规范..."
-          
+
           CONVENTIONAL_PATTERN="^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?!?: .+$"
-          
+
           INVALID_COMMITS=0
           while IFS= read -r commit; do
             if [[ ! "$commit" =~ $CONVENTIONAL_PATTERN ]]; then
@@ -76,7 +76,7 @@ jobs:
               INVALID_COMMITS=$((INVALID_COMMITS + 1))
             fi
           done <<< "$COMMITS"
-          
+
           if [ $INVALID_COMMITS -gt 0 ]; then
             echo ""
             echo "提交信息必须符合 Conventional Commits 规范:"
@@ -86,9 +86,9 @@ jobs:
             echo "  chore: 杂项"
             exit 1
           fi
-          
+
           echo "✅ 所有提交信息符合规范"
-      
+
       - name: Comment PR if checks pass
         if: success()
         uses: actions/github-script@v7
