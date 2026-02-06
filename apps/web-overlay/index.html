@@ -10,7 +10,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #1a1a2e;
@@ -21,13 +21,13 @@
             align-items: center;
             padding: 20px;
         }
-        
+
         h1 {
             margin-bottom: 20px;
             font-size: 24px;
             color: #00d4aa;
         }
-        
+
         .controls {
             background: #16213e;
             padding: 20px;
@@ -36,18 +36,18 @@
             width: 100%;
             max-width: 600px;
         }
-        
+
         .control-group {
             margin-bottom: 15px;
         }
-        
+
         label {
             display: block;
             margin-bottom: 5px;
             font-size: 14px;
             color: #a0a0a0;
         }
-        
+
         select, input {
             width: 100%;
             padding: 10px;
@@ -57,7 +57,7 @@
             color: #fff;
             font-size: 14px;
         }
-        
+
         button {
             width: 100%;
             padding: 12px;
@@ -70,16 +70,16 @@
             cursor: pointer;
             transition: background 0.3s;
         }
-        
+
         button:hover {
             background: #00b894;
         }
-        
+
         button:disabled {
             background: #555;
             cursor: not-allowed;
         }
-        
+
         .result {
             background: #16213e;
             padding: 20px;
@@ -88,13 +88,13 @@
             max-width: 600px;
             min-height: 200px;
         }
-        
+
         .result h2 {
             color: #00d4aa;
             margin-bottom: 15px;
             font-size: 18px;
         }
-        
+
         .advice-line {
             background: #0f3460;
             padding: 15px;
@@ -105,37 +105,74 @@
             text-align: center;
             color: #00d4aa;
         }
-        
+
+        .advice-line.stale {
+            background: #3d3d3d;
+            color: #888;
+        }
+
+        .status-label {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+            text-transform: uppercase;
+        }
+
+        .status-label.success { background: #00d4aa; color: #1a1a2e; }
+        .status-label.miss { background: #f39c12; color: #1a1a2e; }
+        .status-label.unsupported { background: #9b59b6; color: #fff; }
+        .status-label.error { background: #e74c3c; color: #fff; }
+        .status-label.network { background: #e74c3c; color: #fff; }
+        .status-label.timeout { background: #e67e22; color: #fff; }
+        .status-label.stale { background: #7f8c8d; color: #fff; }
+
+        .status-reason {
+            font-size: 13px;
+            color: #a0a0a0;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .stale-notice {
+            font-size: 11px;
+            color: #888;
+            margin-top: 5px;
+            text-align: center;
+        }
+
         .metrics {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
             margin-top: 15px;
         }
-        
+
         .metric {
             background: #0f3460;
             padding: 10px;
             border-radius: 6px;
             text-align: center;
         }
-        
+
         .metric-label {
             font-size: 12px;
             color: #a0a0a0;
             margin-bottom: 5px;
         }
-        
+
         .metric-value {
             font-size: 18px;
             font-weight: bold;
             color: #00d4aa;
         }
-        
+
         .actions {
             margin-top: 15px;
         }
-        
+
         .action-item {
             display: flex;
             justify-content: space-between;
@@ -144,50 +181,50 @@
             border-radius: 6px;
             margin-bottom: 8px;
         }
-        
+
         .action-name {
             font-weight: bold;
         }
-        
+
         .action-freq {
             color: #00d4aa;
         }
-        
+
         .error {
             color: #e74c3c;
             text-align: center;
             padding: 20px;
         }
-        
+
         .loading {
             text-align: center;
             color: #00d4aa;
             padding: 20px;
         }
-        
+
         .capture-controls {
             display: flex;
             gap: 10px;
             margin-top: 15px;
         }
-        
+
         .capture-controls button {
             flex: 1;
         }
-        
+
         #stopCaptureBtn {
             background: #e74c3c;
             color: #fff;
         }
-        
+
         #stopCaptureBtn:hover {
             background: #c0392b;
         }
-        
+
         #stopCaptureBtn:disabled {
             background: #555;
         }
-        
+
         .capture-status {
             background: #16213e;
             padding: 20px;
@@ -196,43 +233,43 @@
             max-width: 600px;
             margin-bottom: 20px;
         }
-        
+
         .capture-status h2 {
             color: #00d4aa;
             margin-bottom: 15px;
             font-size: 18px;
         }
-        
+
         .handstate-display {
             background: #0f3460;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 15px;
         }
-        
+
         .handstate-row {
             display: flex;
             justify-content: space-between;
             padding: 8px 0;
             border-bottom: 1px solid #16213e;
         }
-        
+
         .handstate-row:last-child {
             border-bottom: none;
         }
-        
+
         .handstate-label {
             color: #a0a0a0;
             font-size: 14px;
         }
-        
+
         .handstate-value {
             color: #00d4aa;
             font-weight: bold;
             font-size: 14px;
             font-family: monospace;
         }
-        
+
         .capture-metrics {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -242,7 +279,7 @@
 </head>
 <body>
     <h1>🃏 GTO Strategy Assistant</h1>
-    
+
     <div class="controls">
         <div class="control-group">
             <label>位置 (Position)</label>
@@ -255,7 +292,7 @@
                 <option value="CO">CO</option>
             </select>
         </div>
-        
+
         <div class="control-group">
             <label>有效筹码 (Stack BB)</label>
             <select id="stack">
@@ -265,23 +302,23 @@
                 <option value="200">200 BB</option>
             </select>
         </div>
-        
+
         <div class="control-group">
             <label>底池 (Pot BB)</label>
             <input type="number" id="pot" value="1.5" min="0" max="100" step="0.5">
         </div>
-        
+
         <button id="queryBtn" onclick="queryStrategy()">获取策略建议</button>
-        
+
         <div class="capture-controls">
             <button id="startCaptureBtn" onclick="startCapture()">启动屏幕捕获</button>
             <button id="stopCaptureBtn" onclick="stopCapture()" disabled>停止屏幕捕获</button>
         </div>
     </div>
-    
+
     <div class="capture-status">
         <h2>📊 捕获状态</h2>
-        
+
         <div class="handstate-display">
             <div class="handstate-row">
                 <span class="handstate-label">Hand ID</span>
@@ -316,7 +353,7 @@
                 <span class="handstate-value" id="captureTimestamp">-</span>
             </div>
         </div>
-        
+
         <div class="capture-metrics">
             <div class="metric">
                 <div class="metric-label">捕获帧率 (FPS)</div>
@@ -328,15 +365,20 @@
             </div>
         </div>
     </div>
-    
+
     <div class="result" id="result">
         <h2>策略建议</h2>
+
         <div class="advice-line" id="adviceLine">
-            点击按钮获取建议
+            <span id="statusLabel"></span>
+            <span id="adviceText">点击按钮获取建议</span>
         </div>
-        
+
+        <div class="status-reason" id="statusReason"></div>
+        <div class="stale-notice" id="staleNotice"></div>
+
         <div class="actions" id="actions"></div>
-        
+
         <div class="metrics">
             <div class="metric">
                 <div class="metric-label">延迟 (ms)</div>
@@ -355,18 +397,18 @@
 
     <script>
         const API_BASE = 'http://localhost:8000';
-        
+
         async function queryStrategy() {
             const btn = document.getElementById('queryBtn');
             const resultDiv = document.getElementById('result');
-            
+
             btn.disabled = true;
             btn.textContent = '查询中...';
-            
+
             const position = document.getElementById('position').value;
             const stack = parseFloat(document.getElementById('stack').value);
             const pot = parseFloat(document.getElementById('pot').value);
-            
+
             const handState = {
                 hand_id: `hand_${Date.now()}`,
                 table_id: 'table_001',
@@ -376,63 +418,130 @@
                 pot_bb: pot,
                 action_line: 'FOLD_FOLD_FOLD_FOLD'
             };
-            
-            const startTime = performance.now();
-            
+
             try {
-                const response = await fetch(`${API_BASE}/v1/strategy/query`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(handState)
-                });
-                
-                const e2eLatency = Math.round(performance.now() - startTime);
-                const data = await response.json();
-                
-                if (data.success) {
-                    const advice = data.data;
-                    const bestAction = advice.actions.reduce((a, b) => a.ev > b.ev ? a : b);
-                    
-                    document.getElementById('adviceLine').textContent = 
-                        `${position}: ${bestAction.action.toUpperCase()} (${Math.round(bestAction.frequency * 100)}%)`;
-                    
-                    const actionsHtml = advice.actions
-                        .sort((a, b) => b.frequency - a.frequency)
-                        .map(a => `
-                            <div class="action-item">
-                                <span class="action-name">${a.action}</span>
-                                <span class="action-freq">${Math.round(a.frequency * 100)}%</span>
-                            </div>
-                        `).join('');
-                    document.getElementById('actions').innerHTML = actionsHtml;
-                    
-                    document.getElementById('latency').textContent = e2eLatency;
-                    document.getElementById('cache').textContent = advice.cache_status;
-                    document.getElementById('confidence').textContent = Math.round(advice.confidence * 100) + '%';
-                    
+                // 使用 apiClient 查询
+                const result = await apiClient.queryStrategy(handState);
+
+                // 更新 UI
+                updateStrategyUI(result, position);
+
+                // 上报指标
+                if (result.status === 'SUCCESS') {
                     reportMetrics({
-                        e2e_latency_ms: e2eLatency,
-                        redis_hit_rate: advice.cache_status === 'hit' ? 1 : 0,
+                        e2e_latency_ms: result.latencyMs,
+                        redis_hit_rate: result.source === 'hit' ? 1 : 0,
                         unsupported_rate: 0
                     });
-                } else {
-                    document.getElementById('adviceLine').textContent = '查询失败';
                 }
             } catch (error) {
-                document.getElementById('adviceLine').textContent = 'API连接失败';
-                console.error(error);
+                console.error('查询失败:', error);
+                showErrorUI('ERROR', '查询失败: ' + error.message);
             }
-            
+
             btn.disabled = false;
             btn.textContent = '获取策略建议';
         }
-        
+
+        function updateStrategyUI(result, position) {
+            const statusLabel = document.getElementById('statusLabel');
+            const adviceText = document.getElementById('adviceText');
+            const statusReason = document.getElementById('statusReason');
+            const staleNotice = document.getElementById('staleNotice');
+            const adviceLine = document.getElementById('adviceLine');
+
+            // 清除之前的样式
+            adviceLine.className = 'advice-line';
+
+            // 状态标签映射
+            const statusMap = {
+                'SUCCESS': { label: 'SUCCESS', class: 'success', reason: '' },
+                'MISS': { label: 'MISS', class: 'miss', reason: '策略未命中缓存' },
+                'UNSUPPORTED': { label: 'UNSUPPORTED', class: 'unsupported', reason: '当前场景暂不支持' },
+                'NETWORK_ERROR': { label: 'NETWORK', class: 'network', reason: '网络连接失败' },
+                'TIMEOUT': { label: 'TIMEOUT', class: 'timeout', reason: '请求超时' },
+                'SERVER_ERROR': { label: 'ERROR', class: 'error', reason: '服务器错误' },
+                'CLIENT_ERROR': { label: 'ERROR', class: 'error', reason: '请求参数错误' },
+                'API_ERROR': { label: 'ERROR', class: 'error', reason: 'API 返回错误' },
+                'DATA_ERROR': { label: 'ERROR', class: 'error', reason: '数据格式错误' },
+                'PARSE_ERROR': { label: 'ERROR', class: 'error', reason: '响应解析失败' },
+                'ERROR': { label: 'ERROR', class: 'error', reason: '未知错误' },
+            };
+
+            const statusInfo = statusMap[result.status] || statusMap['ERROR'];
+
+            // 设置状态标签
+            statusLabel.className = 'status-label ' + statusInfo.class;
+            statusLabel.textContent = statusInfo.label;
+
+            // 获取要显示的策略数据
+            const strategyData = result.status === 'SUCCESS' ? result.data : result.staleData;
+            const isStale = result.status !== 'SUCCESS' && result.staleData;
+
+            if (strategyData && strategyData.actions) {
+                // 显示策略
+                const bestAction = strategyData.actions.reduce((a, b) => a.ev > b.ev ? a : b);
+                adviceText.textContent = `${position}: ${bestAction.action.toUpperCase()} (${Math.round(bestAction.frequency * 100)}%)`;
+
+                // 显示动作列表
+                const actionsHtml = strategyData.actions
+                    .sort((a, b) => b.frequency - a.frequency)
+                    .map(a => `
+                        <div class="action-item">
+                            <span class="action-name">${a.action}</span>
+                            <span class="action-freq">${Math.round(a.frequency * 100)}%</span>
+                        </div>
+                    `).join('');
+                document.getElementById('actions').innerHTML = actionsHtml;
+
+                // 更新指标
+                document.getElementById('latency').textContent = result.latencyMs || '-';
+                document.getElementById('cache').textContent = strategyData.cache_status || result.source || '-';
+                document.getElementById('confidence').textContent = Math.round(strategyData.confidence * 100) + '%';
+
+                // 错误状态但有 stale 数据
+                if (isStale) {
+                    adviceLine.classList.add('stale');
+                    statusLabel.className = 'status-label stale';
+                    statusLabel.textContent = 'STALE';
+                    staleNotice.textContent = `⚠️ 使用 ${result.staleAgeSec}秒前的缓存策略`;
+                    statusReason.textContent = statusInfo.reason + (result.error ? ` (${result.error})` : '');
+                } else {
+                    staleNotice.textContent = '';
+                    statusReason.textContent = statusInfo.reason;
+                }
+            } else {
+                // 无策略数据可显示
+                adviceText.textContent = '无可用策略';
+                document.getElementById('actions').innerHTML = '';
+                document.getElementById('latency').textContent = '-';
+                document.getElementById('cache').textContent = '-';
+                document.getElementById('confidence').textContent = '-';
+                statusReason.textContent = statusInfo.reason + (result.error ? ` - ${result.error}` : '');
+                staleNotice.textContent = '';
+            }
+        }
+
+        function showErrorUI(status, message) {
+            const statusLabel = document.getElementById('statusLabel');
+            const adviceText = document.getElementById('adviceText');
+            const statusReason = document.getElementById('statusReason');
+            const staleNotice = document.getElementById('staleNotice');
+            const adviceLine = document.getElementById('adviceLine');
+
+            adviceLine.className = 'advice-line';
+            statusLabel.className = 'status-label error';
+            statusLabel.textContent = status;
+            adviceText.textContent = '查询失败';
+            statusReason.textContent = message;
+            staleNotice.textContent = '';
+            document.getElementById('actions').innerHTML = '';
+        }
+
         function reportMetrics(metrics) {
             console.log('📊 Metrics:', metrics);
         }
-        
+
         async function loadMetrics() {
             try {
                 const response = await fetch(`${API_BASE}/metrics`);
@@ -442,7 +551,7 @@
                 console.log('Metrics endpoint not available');
             }
         }
-        
+
         loadMetrics();
     </script>
     <script src="handstate.js"></script>

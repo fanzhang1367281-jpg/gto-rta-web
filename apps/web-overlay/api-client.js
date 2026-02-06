@@ -14,6 +14,11 @@ class ApiClient {
     this.lastResult = null; // 缓存上次结果
     this.inFlightPromise = null; // single-flight: 当前在途请求
 
+    // 状态与缓存管理
+    this.lastSuccessfulStrategy = null; // 上次成功策略数据
+    this.lastSuccessfulAt = 0; // 上次成功时间戳
+    this.currentStatus = "INIT"; // INIT | SUCCESS | MISS | UNSUPPORTED | ERROR | NETWORK_ERROR
+
     // 指标追踪
     this.metrics = {
       totalRequests: 0,
@@ -85,6 +90,7 @@ class ApiClient {
 
   /**
    * 实际执行查询 (内部方法)
+   * @returns {Promise<Object>} 统一响应格式: { status, source, data?, error?, staleAgeSec? }
    */
   async _doQuery(handState) {
     this.metrics.totalRequests++;
@@ -110,32 +116,44 @@ class ApiClient {
       this.metrics.lastLatencyMs = latencyMs;
       this.metrics.totalLatencyMs += latencyMs;
 
+      // HTTP 错误处理 (4xx/5xx)
       if (!response.ok) {
-        const error = new Error(
-          `HTTP 错误: ${response.status} ${response.statusText}`,
-        );
         this.metrics.failedRequests++;
-        this.metrics.lastError = error.message;
-        throw error;
+        const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+        this.metrics.lastError = errorMsg;
+        this.currentStatus =
+          response.status >= 500 ? "SERVER_ERROR" : "CLIENT_ERROR";
+
+        return this._buildErrorResponse(errorMsg, this.currentStatus);
       }
 
       const data = await response.json();
 
       // 校验响应结构
       if (!data || typeof data !== "object") {
-        const error = new Error("API 响应格式错误: 不是有效的 JSON 对象");
         this.metrics.failedRequests++;
-        this.metrics.lastError = error.message;
-        throw error;
+        const errorMsg = "API 响应格式错误";
+        this.metrics.lastError = errorMsg;
+        this.currentStatus = "PARSE_ERROR";
+        return this._buildErrorResponse(errorMsg, "PARSE_ERROR");
       }
 
-      // 检查 API 返回的成功状态
+      // API 返回的成功状态检查
       if (data.success === false) {
-        const errorMsg = data.error || "API 返回失败状态";
-        const error = new Error(`API 错误: ${errorMsg}`);
         this.metrics.failedRequests++;
-        this.metrics.lastError = error.message;
-        throw error;
+        const errorMsg = data.error || "API 返回失败";
+        this.metrics.lastError = errorMsg;
+
+        // 判断错误类型
+        if (errorMsg.includes("unsupported") || errorMsg.includes("不支持")) {
+          this.currentStatus = "UNSUPPORTED";
+        } else if (errorMsg.includes("miss") || errorMsg.includes("未命中")) {
+          this.currentStatus = "MISS";
+        } else {
+          this.currentStatus = "API_ERROR";
+        }
+
+        return this._buildErrorResponse(errorMsg, this.currentStatus);
       }
 
       // 校验响应数据中包含策略数据
@@ -144,14 +162,17 @@ class ApiClient {
         !data.data.actions ||
         !Array.isArray(data.data.actions)
       ) {
-        const error = new Error("API 响应缺少策略数据(actions)");
         this.metrics.failedRequests++;
-        this.metrics.lastError = error.message;
-        throw error;
+        const errorMsg = "API 响应缺少策略数据";
+        this.metrics.lastError = errorMsg;
+        this.currentStatus = "DATA_ERROR";
+        return this._buildErrorResponse(errorMsg, "DATA_ERROR");
       }
 
+      // 成功响应
       this.metrics.successfulRequests++;
       this.metrics.lastError = null;
+      this.currentStatus = "SUCCESS";
 
       const result = {
         success: true,
@@ -160,32 +181,64 @@ class ApiClient {
         raw: data,
       };
 
-      // 缓存成功结果
+      // 缓存成功结果和策略数据
       this.lastResult = result;
+      this.lastSuccessfulStrategy = data.data;
+      this.lastSuccessfulAt = Date.now();
 
-      return result;
+      return {
+        status: "SUCCESS",
+        source: data.data.cache_status || "api",
+        data: data.data,
+        latencyMs: latencyMs,
+      };
     } catch (error) {
       this.metrics.failedRequests++;
 
       // 区分错误类型
       if (error.name === "AbortError") {
-        const timeoutError = new Error("API 请求超时 (5秒)");
-        this.metrics.lastError = timeoutError.message;
-        throw timeoutError;
+        const errorMsg = "请求超时 (5秒)";
+        this.metrics.lastError = errorMsg;
+        this.currentStatus = "TIMEOUT";
+        return this._buildErrorResponse(errorMsg, "TIMEOUT");
       }
 
       if (
         error.message.includes("fetch") ||
         error.message.includes("network")
       ) {
-        const networkError = new Error("API 连接失败: 无法连接到服务器");
-        this.metrics.lastError = networkError.message;
-        throw networkError;
+        const errorMsg = "网络连接失败";
+        this.metrics.lastError = errorMsg;
+        this.currentStatus = "NETWORK_ERROR";
+        return this._buildErrorResponse(errorMsg, "NETWORK_ERROR");
       }
 
       this.metrics.lastError = error.message;
-      throw error;
+      this.currentStatus = "ERROR";
+      return this._buildErrorResponse(error.message, "ERROR");
     }
+  }
+
+  /**
+   * 构建错误响应 (包含 stale 数据)
+   */
+  _buildErrorResponse(errorMessage, status) {
+    const result = {
+      status: status,
+      source: "error",
+      error: errorMessage,
+      data: null,
+    };
+
+    // 如果有缓存的成功策略，附加 stale 数据
+    if (this.lastSuccessfulStrategy) {
+      const now = Date.now();
+      const staleAgeSec = Math.round((now - this.lastSuccessfulAt) / 1000);
+      result.staleData = this.lastSuccessfulStrategy;
+      result.staleAgeSec = staleAgeSec;
+    }
+
+    return result;
   }
 
   /**
