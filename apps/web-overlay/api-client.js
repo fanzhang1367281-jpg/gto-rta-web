@@ -30,6 +30,13 @@ class ApiClient {
       throttledRequests: 0, // 被节流的请求数 (跳过 + 复用)
       skippedRequests: 0, // 因间隔太短被跳过的请求数
       reusedRequests: 0, // 复用 in-flight 的请求数
+      // 新增: 运行时分档统计
+      hitCount: 0, // cache hit
+      missCount: 0, // cache miss
+      staleCount: 0, // 使用 stale 数据的次数
+      // 新增: 滑动窗口（用于 p50/p95 近似）
+      latencyHistory: [], // 最近 100 次延迟
+      requestTimestamps: [], // 最近 1 分钟的请求时间戳
     };
   }
 
@@ -174,6 +181,16 @@ class ApiClient {
       this.metrics.lastError = null;
       this.currentStatus = "SUCCESS";
 
+      // 记录延迟到滑动窗口
+      this._recordLatency(latencyMs);
+
+      // 记录 cache hit/miss
+      if (data.data.cache_status === "hit") {
+        this.metrics.hitCount++;
+      } else {
+        this.metrics.missCount++;
+      }
+
       const result = {
         success: true,
         data: data.data,
@@ -220,25 +237,149 @@ class ApiClient {
   }
 
   /**
-   * 构建错误响应 (包含 stale 数据)
+   * 记录延迟到滑动窗口 (保留最近 100 次)
    */
-  _buildErrorResponse(errorMessage, status) {
-    const result = {
-      status: status,
-      source: "error",
-      error: errorMessage,
-      data: null,
-    };
-
-    // 如果有缓存的成功策略，附加 stale 数据
-    if (this.lastSuccessfulStrategy) {
-      const now = Date.now();
-      const staleAgeSec = Math.round((now - this.lastSuccessfulAt) / 1000);
-      result.staleData = this.lastSuccessfulStrategy;
-      result.staleAgeSec = staleAgeSec;
+  _recordLatency(latencyMs) {
+    this.metrics.latencyHistory.push(latencyMs);
+    if (this.metrics.latencyHistory.length > 100) {
+      this.metrics.latencyHistory.shift();
     }
+    // 记录请求时间戳 (用于 QPS 计算)
+    const now = Date.now();
+    this.metrics.requestTimestamps.push(now);
+    // 清理超过 1 分钟的旧记录
+    const oneMinuteAgo = now - 60000;
+    this.metrics.requestTimestamps = this.metrics.requestTimestamps.filter(
+      (t) => t > oneMinuteAgo,
+    );
+  }
 
-    return result;
+  /**
+   * 获取运行时指标快照 (用于论文/复现实验)
+   * @returns {Object} 完整的指标快照
+   */
+  getMetricsSnapshot() {
+    const now = Date.now();
+    const total = this.metrics.totalRequests;
+    const success = this.metrics.successfulRequests;
+    const failed = this.metrics.failedRequests;
+
+    // 计算 hit rate
+    const totalCacheRequests = this.metrics.hitCount + this.metrics.missCount;
+    const hitRate =
+      totalCacheRequests > 0
+        ? (this.metrics.hitCount / totalCacheRequests) * 100
+        : 0;
+
+    // 计算 stale rate (stale 使用次数 / 总请求数)
+    const staleRate = total > 0 ? (this.metrics.staleCount / total) * 100 : 0;
+
+    // 计算 error rate
+    const errorRate = total > 0 ? (failed / total) * 100 : 0;
+
+    // 计算 QPS (最近 1 分钟)
+    const qps = this.metrics.requestTimestamps.length / 60;
+
+    // 计算延迟分位数 (p50/p95)
+    const latencies = [...this.metrics.latencyHistory].sort((a, b) => a - b);
+    const p50 =
+      latencies.length > 0 ? latencies[Math.floor(latencies.length * 0.5)] : 0;
+    const p95 =
+      latencies.length > 0 ? latencies[Math.floor(latencies.length * 0.95)] : 0;
+    const p99 =
+      latencies.length > 0 ? latencies[Math.floor(latencies.length * 0.99)] : 0;
+
+    return {
+      // 元数据
+      version: "1.0.0",
+      timestamp: new Date().toISOString(),
+      timestamp_ms: now,
+
+      // 基础统计
+      requests: {
+        total: total,
+        successful: success,
+        failed: failed,
+        throttled: this.metrics.throttledRequests,
+        skipped: this.metrics.skippedRequests,
+        reused: this.metrics.reusedRequests,
+      },
+
+      // 比率指标
+      rates: {
+        hit_rate_percent: parseFloat(hitRate.toFixed(2)),
+        stale_rate_percent: parseFloat(staleRate.toFixed(2)),
+        error_rate_percent: parseFloat(errorRate.toFixed(2)),
+        success_rate_percent:
+          total > 0 ? parseFloat(((success / total) * 100).toFixed(2)) : 0,
+        qps: parseFloat(qps.toFixed(2)),
+      },
+
+      // 延迟指标 (ms)
+      latency_ms: {
+        p50: p50,
+        p95: p95,
+        p99: p99,
+        avg:
+          success > 0
+            ? parseFloat((this.metrics.totalLatencyMs / success).toFixed(2))
+            : 0,
+        last: this.metrics.lastLatencyMs,
+        sample_size: latencies.length,
+      },
+
+      // 缓存统计
+      cache: {
+        hits: this.metrics.hitCount,
+        misses: this.metrics.missCount,
+        stale_uses: this.metrics.staleCount,
+      },
+
+      // 运行时状态
+      runtime: {
+        last_error: this.metrics.lastError,
+        current_status: this.currentStatus,
+        last_successful_at: this.lastSuccessfulAt,
+      },
+    };
+  }
+
+  /**
+   * 导出指标快照为 JSON 文件 (浏览器下载)
+   */
+  exportMetricsSnapshot(filename = null) {
+    const snapshot = this.getMetricsSnapshot();
+    const defaultFilename = `metrics_${snapshot.timestamp_ms}.json`;
+    const finalFilename = filename || defaultFilename;
+
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = finalFilename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log("[Metrics] Snapshot exported:", finalFilename, snapshot);
+    return snapshot;
+  }
+
+  /**
+   * 打印指标快照到 console (供复制)
+   */
+  printMetricsSnapshot() {
+    const snapshot = this.getMetricsSnapshot();
+    console.log(
+      "%c[Metrics Snapshot]",
+      "color: #00d4aa; font-size: 14px; font-weight: bold;",
+    );
+    console.log(JSON.stringify(snapshot, null, 2));
+    return snapshot;
   }
 
   /**
@@ -289,8 +430,15 @@ class ApiClient {
       throttledRequests: 0,
       skippedRequests: 0,
       reusedRequests: 0,
+      hitCount: 0,
+      missCount: 0,
+      staleCount: 0,
+      latencyHistory: [],
+      requestTimestamps: [],
     };
     this.lastResult = null;
+    this.lastSuccessfulStrategy = null;
+    this.lastSuccessfulAt = 0;
   }
 }
 
