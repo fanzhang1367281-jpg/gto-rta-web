@@ -2,9 +2,13 @@
 测试: 错误请求场景
 验证: 无效输入返回400错误
 """
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pytest
-from fastapi.testclient import TestClient
 from main import app
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
