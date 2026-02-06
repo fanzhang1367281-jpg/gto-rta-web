@@ -164,6 +164,80 @@
             color: #00d4aa;
             padding: 20px;
         }
+        
+        .capture-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .capture-controls button {
+            flex: 1;
+        }
+        
+        #stopCaptureBtn {
+            background: #e74c3c;
+            color: #fff;
+        }
+        
+        #stopCaptureBtn:hover {
+            background: #c0392b;
+        }
+        
+        #stopCaptureBtn:disabled {
+            background: #555;
+        }
+        
+        .capture-status {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+        
+        .capture-status h2 {
+            color: #00d4aa;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .handstate-display {
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .handstate-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #16213e;
+        }
+        
+        .handstate-row:last-child {
+            border-bottom: none;
+        }
+        
+        .handstate-label {
+            color: #a0a0a0;
+            font-size: 14px;
+        }
+        
+        .handstate-value {
+            color: #00d4aa;
+            font-weight: bold;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        
+        .capture-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -198,6 +272,61 @@
         </div>
         
         <button id="queryBtn" onclick="queryStrategy()">获取策略建议</button>
+        
+        <div class="capture-controls">
+            <button id="startCaptureBtn" onclick="startCapture()">启动屏幕捕获</button>
+            <button id="stopCaptureBtn" onclick="stopCapture()" disabled>停止屏幕捕获</button>
+        </div>
+    </div>
+    
+    <div class="capture-status">
+        <h2>📊 捕获状态</h2>
+        
+        <div class="handstate-display">
+            <div class="handstate-row">
+                <span class="handstate-label">Hand ID</span>
+                <span class="handstate-value" id="captureHandId">-</span>
+            </div>
+            <div class="handstate-row">
+                <span class="handstate-label">Table ID</span>
+                <span class="handstate-value" id="captureTableId">-</span>
+            </div>
+            <div class="handstate-row">
+                <span class="handstate-label">Street</span>
+                <span class="handstate-value" id="captureStreet">-</span>
+            </div>
+            <div class="handstate-row">
+                <span class="handstate-label">Hero Position</span>
+                <span class="handstate-value" id="captureHeroPos">-</span>
+            </div>
+            <div class="handstate-row">
+                <span class="handstate-label">Effective Stack (BB)</span>
+                <span class="handstate-value" id="captureStack">-</span>
+            </div>
+            <div class="handstate-row">
+                <span class="handstate-label">Pot (BB)</span>
+                <span class="handstate-value" id="capturePot">-</span>
+            </div>
+            <div class="handstate-row">
+                <span class="handstate-label">Action Line</span>
+                <span class="handstate-value" id="captureActionLine">-</span>
+            </div>
+            <div class="handstate-row">
+                <span class="handstate-label">Timestamp</span>
+                <span class="handstate-value" id="captureTimestamp">-</span>
+            </div>
+        </div>
+        
+        <div class="capture-metrics">
+            <div class="metric">
+                <div class="metric-label">捕获帧率 (FPS)</div>
+                <div class="metric-value" id="captureFps">-</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">生成延迟 (ms)</div>
+                <div class="metric-value" id="captureLatency">-</div>
+            </div>
+        </div>
     </div>
     
     <div class="result" id="result">
@@ -266,11 +395,9 @@
                     const advice = data.data;
                     const bestAction = advice.actions.reduce((a, b) => a.ev > b.ev ? a : b);
                     
-                    // 显示主建议
                     document.getElementById('adviceLine').textContent = 
                         `${position}: ${bestAction.action.toUpperCase()} (${Math.round(bestAction.frequency * 100)}%)`;
                     
-                    // 显示所有动作
                     const actionsHtml = advice.actions
                         .sort((a, b) => b.frequency - a.frequency)
                         .map(a => `
@@ -281,12 +408,10 @@
                         `).join('');
                     document.getElementById('actions').innerHTML = actionsHtml;
                     
-                    // 显示指标
                     document.getElementById('latency').textContent = e2eLatency;
                     document.getElementById('cache').textContent = advice.cache_status;
                     document.getElementById('confidence').textContent = Math.round(advice.confidence * 100) + '%';
                     
-                    // 上报指标
                     reportMetrics({
                         e2e_latency_ms: e2eLatency,
                         redis_hit_rate: advice.cache_status === 'hit' ? 1 : 0,
@@ -304,12 +429,10 @@
             btn.textContent = '获取策略建议';
         }
         
-        // 简单的指标上报（模拟）
         function reportMetrics(metrics) {
             console.log('📊 Metrics:', metrics);
         }
         
-        // 页面加载时获取指标
         async function loadMetrics() {
             try {
                 const response = await fetch(`${API_BASE}/metrics`);
@@ -322,5 +445,7 @@
         
         loadMetrics();
     </script>
+    <script src="handstate.js"></script>
+    <script src="capture.js"></script>
 </body>
 </html>
