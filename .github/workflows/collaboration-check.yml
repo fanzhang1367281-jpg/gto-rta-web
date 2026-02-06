@@ -63,14 +63,17 @@ jobs:
 
       - name: Check Conventional Commits
         run: |
-          # 获取 PR 中的 commits（排除 merge commits）
-          COMMITS=$(git log --pretty=format:"%s" --no-merges origin/${{ github.base_ref }}..HEAD)
+# 获取 base 分支（用于对比提交范围）
+git fetch origin ${{ github.base_ref }} --depth=1
 
-          # 如果无非 merge commit，直接通过
-          if [ -z "$COMMITS" ]; then
-            echo "✅ 无非 merge commit，跳过检查"
-            exit 0
-          fi
+# 获取 PR 中的 commits（排除 merge commits）
+COMMITS=$(git log --pretty=format:"%s" --no-merges origin/${{ github.base_ref }}..HEAD)
+
+# 如果无非 merge commit，直接通过
+if [ -z "$COMMITS" ]; then
+  echo "✅ 无非 merge commit，跳过检查"
+  exit 0
+fi
 
           echo "检查提交信息规范..."
 
