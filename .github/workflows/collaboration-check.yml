@@ -63,7 +63,7 @@ jobs:
         run: |
           # 获取 PR 中的 commits
           git fetch origin ${{ github.base_ref }} --depth=1
-          COMMITS=$(git log --pretty=format:"%s" origin/${{ github.base_ref }}..HEAD)
+          COMMITS=$(git log --pretty=format:"%s" --no-merges origin/${{ github.base_ref }}..HEAD)
           
           echo "检查提交信息规范..."
           
