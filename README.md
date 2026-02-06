@@ -184,6 +184,29 @@ OpenClaw(协调) → OpenCode(执行) → CI/CD(门禁)
 
 ---
 
+## 📊 Metrics Export (论文引用)
+
+运行时指标导出，支持论文复现实验：
+
+```bash
+# 导出方法
+Ctrl+E          → 下载 metrics_<TIMESTAMP>.json
+Ctrl+Shift+E    → 打印到 DevTools Console
+```
+
+**关键字段** (详见 [docs/metrics.md](docs/metrics.md)):
+
+- `rates.qps` — 1分钟滑窗 QPS
+- `latency_ms.p50/p95/p99` — 100样本滑窗延迟分位数
+- `rates.hit_rate_percent` — 缓存命中率
+- `rates.stale_rate_percent` — 降级策略使用率
+
+**论文引用建议**:
+
+> "We measured API performance using GTO-RTA's runtime metrics export (v0.3.0, metrics v1.0.0), capturing p95 latency over a 100-sample sliding window..."
+
+---
+
 ## 📁 项目结构
 
 ```
