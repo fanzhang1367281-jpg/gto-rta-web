@@ -2,54 +2,80 @@
 测试: 缓存命中场景
 验证: Redis中存在策略数据时，API正确返回
 """
-import sys
+import hashlib
+import json
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pytest
-import json
-from main import app, strategy_db
-from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient  # noqa: E402
+from main import app, USE_REDIS, redis_client, SOLUTION_VERSION  # noqa: E402
 
 client = TestClient(app)
 
+
+def generate_fingerprint(street, hero_pos, effective_stack_bb, action_line):
+    """生成与API相同的fingerprint"""
+    key_parts = [
+        street,
+        hero_pos,
+        str(int(effective_stack_bb / 10) * 10),  # 离散化
+        action_line,
+    ]
+    key_string = "|".join(key_parts)
+    return hashlib.sha256(key_string.encode()).hexdigest()[:16]
+
+
 def test_query_hit():
     """测试缓存命中 - 已知策略场景"""
-    # 准备: 确保策略数据在内存中
-    test_fingerprint = "preflop|BTN|100|FOLD_FOLD_FOLD_FOLD"
-    strategy_db[f"strat:v0.1.0:{test_fingerprint}"] = {
+    # 准备: 确保策略数据在存储中 (Redis 或内存)
+    test_fingerprint = generate_fingerprint("preflop", "BTN", 100, "FOLD_FOLD_FOLD_FOLD")
+    cache_key = f"strat:{SOLUTION_VERSION}:{test_fingerprint}"
+    test_data = {
         "actions": [
             {"action": "raise_2.5x", "frequency": 0.55, "ev": 3.2},
-            {"action": "fold", "frequency": 0.45, "ev": 0.0}
+            {"action": "fold", "frequency": 0.45, "ev": 0.0},
         ],
-        "source": "preflop_db"
+        "source": "preflop_db",
     }
-    
+
+    if USE_REDIS:
+        redis_client.setex(cache_key, 3600, json.dumps(test_data))
+    else:
+        from main import strategy_db  # noqa: E402
+
+        strategy_db[cache_key] = test_data
+
     # 执行查询
-    response = client.post("/v1/strategy/query", json={
-        "hand_id": "test_hit_001",
-        "table_id": "table_001",
-        "street": "preflop",
-        "hero_pos": "BTN",
-        "effective_stack_bb": 100,
-        "pot_bb": 1.5,
-        "action_line": "FOLD_FOLD_FOLD_FOLD"
-    })
-    
+    response = client.post(
+        "/v1/strategy/query",
+        json={
+            "hand_id": "test_hit_001",
+            "table_id": "table_001",
+            "street": "preflop",
+            "hero_pos": "BTN",
+            "effective_stack_bb": 100,
+            "pot_bb": 1.5,
+            "action_line": "FOLD_FOLD_FOLD_FOLD",
+        },
+    )
+
     # 验证
     assert response.status_code == 200
     data = response.json()
-    
+
     assert data["success"] is True
     assert data["data"]["cache_status"] == "hit"
     assert data["data"]["confidence"] > 0.9
     assert len(data["data"]["actions"]) > 0
-    
+
     # 验证延迟
     assert data["server_latency_ms"] < 100  # 命中应该很快
     assert data["data"]["retrieval_latency_ms"] < 50
-    
+
     print(f"✅ Hit test passed: latency={data['server_latency_ms']}ms")
+
 
 if __name__ == "__main__":
     test_query_hit()
