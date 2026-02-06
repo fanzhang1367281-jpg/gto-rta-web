@@ -98,6 +98,7 @@ jobs:
 
       - name: Comment PR if checks pass
         if: success()
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
