@@ -2,6 +2,7 @@
 测试: 缓存命中场景
 验证: Redis中存在策略数据时，API正确返回
 """
+import hashlib
 import json
 import os
 import sys
@@ -14,10 +15,22 @@ from main import app, USE_REDIS, redis_client, SOLUTION_VERSION  # noqa: E402
 client = TestClient(app)
 
 
+def generate_fingerprint(street, hero_pos, effective_stack_bb, action_line):
+    """生成与API相同的fingerprint"""
+    key_parts = [
+        street,
+        hero_pos,
+        str(int(effective_stack_bb / 10) * 10),  # 离散化
+        action_line,
+    ]
+    key_string = "|".join(key_parts)
+    return hashlib.sha256(key_string.encode()).hexdigest()[:16]
+
+
 def test_query_hit():
     """测试缓存命中 - 已知策略场景"""
     # 准备: 确保策略数据在存储中 (Redis 或内存)
-    test_fingerprint = "preflop|BTN|100|FOLD_FOLD_FOLD_FOLD"
+    test_fingerprint = generate_fingerprint("preflop", "BTN", 100, "FOLD_FOLD_FOLD_FOLD")
     cache_key = f"strat:{SOLUTION_VERSION}:{test_fingerprint}"
     test_data = {
         "actions": [
