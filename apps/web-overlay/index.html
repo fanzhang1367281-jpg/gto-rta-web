@@ -275,6 +275,42 @@
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
         }
+
+        .metrics-export {
+            margin-top: 15px;
+            padding: 15px;
+            background: #0f3460;
+            border-radius: 8px;
+            border: 1px dashed #00d4aa;
+        }
+
+        .metrics-export h3 {
+            font-size: 14px;
+            color: #00d4aa;
+            margin-bottom: 10px;
+        }
+
+        .export-btn {
+            background: #00d4aa;
+            color: #1a1a2e;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .export-btn:hover {
+            background: #00b894;
+        }
+
+        .export-hint {
+            font-size: 11px;
+            color: #a0a0a0;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
@@ -313,6 +349,13 @@
         <div class="capture-controls">
             <button id="startCaptureBtn" onclick="startCapture()">启动屏幕捕获</button>
             <button id="stopCaptureBtn" onclick="stopCapture()" disabled>停止屏幕捕获</button>
+        </div>
+
+        <div class="metrics-export">
+            <h3>📊 运行时指标导出</h3>
+            <button class="export-btn" onclick="exportMetrics()">导出 metrics.json</button>
+            <button class="export-btn" onclick="printMetrics()" style="background: #16213e; color: #00d4aa; border: 1px solid #00d4aa;">打印到 Console</button>
+            <div class="export-hint">快捷键: Ctrl+E (导出) | Ctrl+Shift+E (打印)</div>
         </div>
     </div>
 
@@ -580,6 +623,36 @@
         function reportMetrics(metrics) {
             console.log('📊 Metrics:', metrics);
         }
+
+        // 导出指标快照
+        function exportMetrics() {
+            if (typeof apiClient !== 'undefined') {
+                apiClient.exportMetricsSnapshot();
+            } else {
+                console.error('apiClient not found');
+            }
+        }
+
+        // 打印指标到 console
+        function printMetrics() {
+            if (typeof apiClient !== 'undefined') {
+                apiClient.printMetricsSnapshot();
+            } else {
+                console.error('apiClient not found');
+            }
+        }
+
+        // 键盘快捷键: Ctrl+E (导出), Ctrl+Shift+E (打印)
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'e') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    printMetrics();
+                } else {
+                    exportMetrics();
+                }
+            }
+        });
 
         async function loadMetrics() {
             try {
