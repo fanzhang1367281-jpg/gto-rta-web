@@ -235,21 +235,8 @@
         
         .capture-metrics {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-        }
-
-        .strategy-display {
-            background: #0f3460;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-
-        .strategy-display h3 {
-            color: #00d4aa;
-            margin-bottom: 10px;
-            font-size: 14px;
         }
     </style>
 </head>
@@ -330,12 +317,6 @@
             </div>
         </div>
         
-        <div class="strategy-display">
-            <h3>🎯 实时策略建议</h3>
-            <div class="advice-line" id="strategyAdvice">等待捕获启动...</div>
-            <div class="actions" id="strategyActions"></div>
-        </div>
-
         <div class="capture-metrics">
             <div class="metric">
                 <div class="metric-label">捕获帧率 (FPS)</div>
@@ -344,18 +325,6 @@
             <div class="metric">
                 <div class="metric-label">生成延迟 (ms)</div>
                 <div class="metric-value" id="captureLatency">-</div>
-            </div>
-            <div class="metric">
-                <div class="metric-label">API 延迟 (ms)</div>
-                <div class="metric-value" id="apiLatency">-</div>
-            </div>
-            <div class="metric">
-                <div class="metric-label">API 成功率</div>
-                <div class="metric-value" id="apiSuccessRate">-</div>
-            </div>
-            <div class="metric">
-                <div class="metric-label">API 状态</div>
-                <div class="metric-value" id="apiStatus">等待中</div>
             </div>
         </div>
     </div>
@@ -477,7 +446,6 @@
         loadMetrics();
     </script>
     <script src="handstate.js"></script>
-    <script src="api-client.js"></script>
     <script src="capture.js"></script>
 </body>
 </html>
