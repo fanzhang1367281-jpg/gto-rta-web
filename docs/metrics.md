@@ -1,193 +1,211 @@
-# 📊 指标文档
+# Metrics Contract — GTO-RTA Runtime Export
 
-## 核心指标定义
-
-### 1. E2E Latency (端到端延迟)
-
-**定义**: 从请求发出到收到完整响应的时间间隔
-
-**计算公式**:
-```
-E2E Latency = T_response_received - T_request_sent
-```
-
-**测量点**: 客户端 (浏览器/测试脚本)
-
-**目标**:
-| 分位 | MVP目标 | V2目标 |
-|------|---------|--------|
-| P50 | < 120ms | < 100ms |
-| P95 | < 250ms | < 200ms |
-| P99 | < 350ms | < 300ms |
-
-**采样窗口**: 1分钟滚动窗口
-
-**聚合口径**:
-- 按 `street` 分层 (preflop/flop/turn/river)
-- 按 `hero_pos` 分层
-- 全局汇总
-
-**排除规则**:
-- 排除超时请求 (> 5s)
-- 排除网络错误
-- 排除客户端取消
+> **Version**: 1.0.0
+> **Purpose**: Paper citation & reproducible experiments
+> **Cite as**: (gto-rta-web `v0.3.0`, metrics.version `1.0.0`, solution.version TBD)
 
 ---
 
-### 2. Redis Hit Rate (缓存命中率)
+## 1. Export Methods
 
-**定义**: 从Redis缓存成功获取策略的查询比例
-
-**计算公式**:
-```
-Hit Rate = Cache Hits / (Cache Hits + Cache Misses)
-```
-
-**测量点**: API服务端
-
-**目标**:
-| 阶段 | 目标 |
-|------|------|
-| 冷启动期 | > 30% |
-| 稳定期 | > 80% |
-| 优化期 | > 90% |
-
-**采样窗口**: 5分钟滚动窗口
-
-**聚合口径**:
-- 按 `solution_version` 分组
-- 按 `street` 分层
-- 全局汇总
-
-**排除规则**:
-- 排除fallback场景 (预期miss)
-- 排除首次查询 (预热期)
+| Method        | Trigger                               | Output                                  |
+| ------------- | ------------------------------------- | --------------------------------------- |
+| File Download | `Ctrl+E` or click "导出 metrics.json" | `metrics_<TIMESTAMP>.json`              |
+| Console Print | `Ctrl+Shift+E`                        | Pretty-printed JSON in DevTools console |
+| Programmatic  | `apiClient.exportMetricsSnapshot()`   | Same as file download                   |
 
 ---
 
-### 3. Unsupported Rate (不支持场景率)
+## 2. Field Definitions & Units
 
-**定义**: 触发fallback策略的查询比例
+### Top-level Metadata
 
-**计算公式**:
-```
-Unsupported Rate = Fallback Queries / Total Queries
-```
+| Field          | Type    | Description                     |
+| -------------- | ------- | ------------------------------- |
+| `version`      | string  | Metrics schema version (semver) |
+| `timestamp`    | ISO8601 | Export moment (UTC)             |
+| `timestamp_ms` | integer | Export moment (Unix ms)         |
 
-**测量点**: API服务端
+### requests — Request Counts
 
-**目标**:
-| 阶段 | 目标 |
-|------|------|
-| MVP | < 30% |
-| V2 | < 10% |
+| Field        | Definition                                   | Notes                               |
+| ------------ | -------------------------------------------- | ----------------------------------- |
+| `total`      | Total query attempts                         | Includes throttled, skipped, reused |
+| `successful` | HTTP 200 + valid JSON + `success=true`       | Excludes stale fallback             |
+| `failed`     | All non-success outcomes                     | See §3 Failed States                |
+| `throttled`  | Requests that waited or returned cached      | Single-flight + skip-if-too-soon    |
+| `skipped`    | Requests <1s interval, returned `lastResult` | Subset of throttled                 |
+| `reused`     | Requests that returned `inFlightPromise`     | Subset of throttled                 |
 
-**采样窗口**: 1小时滚动窗口
+### rates — Percentages & QPS
 
-**聚合口径**:
-- 按 `street` 分层
-- 按 `fallback_reason` 分类
-- 全局汇总
+| Field                  | Unit  | Window     | Denominator  | Definition                             |
+| ---------------------- | ----- | ---------- | ------------ | -------------------------------------- |
+| `hit_rate_percent`     | %     | cumulative | `hit + miss` | Cache hits / total cacheable requests  |
+| `stale_rate_percent`   | %     | cumulative | `total`      | Times stale data used / total requests |
+| `error_rate_percent`   | %     | cumulative | `total`      | Failed requests / total requests       |
+| `success_rate_percent` | %     | cumulative | `total`      | Successful requests / total requests   |
+| `qps`                  | req/s | 60s        | N/A          | `requestTimestamps.length / 60`        |
 
-**排除规则**:
-- 排除明确的不支持域 (如multiway)
-- 排除测试数据
+**QPS Calculation**:
+
+- Sliding window: last 60 seconds of `requestTimestamps`
+- Cleaned every request: timestamps older than `now - 60000ms` removed
+- Precision: 2 decimal places
+
+### latency_ms — Latency Distribution
+
+| Field         | Unit  | Window       | Calculation                           |
+| ------------- | ----- | ------------ | ------------------------------------- |
+| `p50`         | ms    | 100 samples  | Median of `latencyHistory`            |
+| `p95`         | ms    | 100 samples  | 95th percentile of `latencyHistory`   |
+| `p99`         | ms    | 100 samples  | 99th percentile of `latencyHistory`   |
+| `avg`         | ms    | cumulative   | `totalLatencyMs / successfulRequests` |
+| `last`        | ms    | last request | Most recent latency                   |
+| `sample_size` | count | current      | `latencyHistory.length` (max 100)     |
+
+**Latency History**:
+
+- Circular buffer: max 100 samples
+- Added on every successful request
+- Sorted at export time for percentile calculation
+- Unit: milliseconds (ms), rounded to integer
+
+### cache — Cache Statistics
+
+| Field        | Definition                                |
+| ------------ | ----------------------------------------- |
+| `hits`       | `cache_status === 'hit'` responses        |
+| `misses`     | `cache_status !== 'hit'` responses        |
+| `stale_uses` | Times error response included `staleData` |
+
+### runtime — Runtime State
+
+| Field                | Type           | Description                                            |
+| -------------------- | -------------- | ------------------------------------------------------ |
+| `last_error`         | string \| null | Last error message, or null if none                    |
+| `current_status`     | enum           | Most recent status: SUCCESS/MISS/UNSUPPORTED/ERROR/... |
+| `last_successful_at` | Unix ms        | Timestamp of last successful response                  |
 
 ---
 
-## 补充指标
+## 3. Failed States Definition
 
-### 4. Server Latency (服务端延迟)
+`requests.failed` includes these status codes:
 
-**定义**: API内部处理时间 (不含网络传输)
+| Status          | HTTP Code | Counted as Failed? | Notes                                |
+| --------------- | --------- | ------------------ | ------------------------------------ |
+| `ERROR`         | varies    | ✅ Yes             | Generic error                        |
+| `TIMEOUT`       | —         | ✅ Yes             | AbortError after 5s                  |
+| `NETWORK_ERROR` | —         | ✅ Yes             | fetch/network failure                |
+| `SERVER_ERROR`  | 5xx       | ✅ Yes             | HTTP 500-599                         |
+| `CLIENT_ERROR`  | 4xx       | ✅ Yes             | HTTP 400-499                         |
+| `API_ERROR`     | 200       | ✅ Yes             | `success=false` in response          |
+| `DATA_ERROR`    | 200       | ✅ Yes             | Missing `actions` array              |
+| `PARSE_ERROR`   | 200       | ✅ Yes             | Invalid JSON                         |
+| `UNSUPPORTED`   | 200       | ❌ No              | Valid response, unsupported scenario |
+| `MISS`          | 200       | ❌ No              | Valid response, cache miss           |
+| `SUCCESS`       | 200       | ❌ No              | Normal success                       |
 
-**计算公式**:
-```
-Server Latency = T_response_ready - T_request_received
-```
+**Key Rule**:
 
-**目标**: P95 < 50ms
-
-### 5. Retrieval Latency (检索延迟)
-
-**定义**: 策略数据检索时间
-
-**测量点**:
-```python
-retrieval_start = time.time()
-cached_data = redis_client.get(cache_key)
-retrieval_latency = time.time() - retrieval_start
-```
-
-**目标**: 
-- 热数据: < 10ms
-- 冷数据: < 100ms
-
-### 6. Error Rate (错误率)
-
-**定义**: 返回非200状态码的请求比例
-
-**计算公式**:
-```
-Error Rate = Error Responses / Total Responses
-```
-
-**目标**: < 1%
+- ✅ Failed = technical failure (network, timeout, server error, parse error)
+- ❌ Not Failed = business logic outcomes (MISS, UNSUPPORTED are valid responses)
 
 ---
 
-## 指标采集与上报
+## 4. Reproducibility Anchor
 
-### 客户端上报
-```javascript
-// 前端自动上报
-const metrics = {
-    e2e_latency_ms: performance.now() - startTime,
-    redis_hit_rate: response.cache_status === 'hit' ? 1 : 0,
-    unsupported_rate: response.source === 'fallback' ? 1 : 0,
-    timestamp: Date.now()
-};
+For paper citation and experiment reproduction, include this triplet:
+
+```
+(gto-rta-web <git_tag_or_commit>, metrics.version <semver>, solution.version <semver>)
 ```
 
-### 服务端采集
-```python
-# API响应中包含
+**Current Values** (as of v0.3.0):
+
+- `gto-rta-web`: `v0.3.0` or commit `be7e90f`
+- `metrics.version`: `1.0.0`
+- `solution.version`: **TBD** (future: inject from build)
+
+**Example Citation**:
+
+> "We measured API performance using GTO-RTA's runtime metrics export (v0.3.0, metrics v1.0.0), capturing p95 latency over a 100-sample sliding window..."
+
+---
+
+## 5. Version Strategy
+
+| Schema  | Metrics Version | Breaking Changes                          |
+| ------- | --------------- | ----------------------------------------- |
+| Initial | 1.0.0           | —                                         |
+| Future  | 1.x.x           | Additive fields only                      |
+| Future  | 2.0.0           | Field removal/rename (requires migration) |
+
+**Compatibility**:
+
+- Minor/patch: backward compatible (new fields OK)
+- Major: breaking change (new file format)
+
+---
+
+## 6. Example Export
+
+```json
 {
-    "server_latency_ms": 45,
-    "retrieval_latency_ms": 12,
-    "cache_status": "hit",
-    "source": "redis_hit"
+  "version": "1.0.0",
+  "timestamp": "2026-02-06T20:25:00.000Z",
+  "timestamp_ms": 1739382300000,
+  "requests": {
+    "total": 150,
+    "successful": 142,
+    "failed": 8,
+    "throttled": 45,
+    "skipped": 38,
+    "reused": 7
+  },
+  "rates": {
+    "hit_rate_percent": 65.49,
+    "stale_rate_percent": 5.33,
+    "error_rate_percent": 5.33,
+    "success_rate_percent": 94.67,
+    "qps": 2.5
+  },
+  "latency_ms": {
+    "p50": 45,
+    "p95": 120,
+    "p99": 180,
+    "avg": 52.3,
+    "last": 38,
+    "sample_size": 100
+  },
+  "cache": {
+    "hits": 93,
+    "misses": 49,
+    "stale_uses": 8
+  },
+  "runtime": {
+    "last_error": null,
+    "current_status": "SUCCESS",
+    "last_successful_at": 1739382298000
+  }
 }
 ```
 
-### 聚合查询
-```bash
-# 获取服务端指标
-curl http://localhost:8000/metrics
-```
+---
+
+## 7. Validation Checklist
+
+Before citing metrics in a paper:
+
+- [ ] Export timestamp recorded
+- [ ] Git commit/tag documented
+- [ ] `metrics.version` matches this contract
+- [ ] Window definitions (QPS 60s, latency 100 samples) stated
+- [ ] Failed states definition aligned with your analysis
 
 ---
 
-## 监控告警
-
-| 指标 | 告警阈值 | 级别 |
-|------|----------|------|
-| E2E P95 > 300ms | 持续5分钟 | 🔴 Critical |
-| Error Rate > 5% | 持续2分钟 | 🔴 Critical |
-| Hit Rate < 70% | 持续10分钟 | 🟡 Warning |
-| Unsupported Rate > 40% | 持续1小时 | 🟡 Warning |
-
----
-
-## 指标可视化
-
-### 推荐工具
-- **Prometheus**: 指标收集
-- **Grafana**: 可视化面板
-- **Loki**: 日志聚合
-
-### 关键面板
-1. Latency Overview (P50/P95/P99)
-2. Cache Performance (Hit/Miss)
-3. Error Tracking (Rate/Trend)
-4. Throughput (RPS/QPS)
+_Document Version: 1.0.0_
+_Last Updated: 2026-02-06_
+_Corresponds to: gto-rta-web v0.3.0_
