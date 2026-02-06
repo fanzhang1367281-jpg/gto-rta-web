@@ -398,6 +398,39 @@
     <script>
         const API_BASE = 'http://localhost:8000';
 
+        // UI 去重状态
+        const uiState = {
+            lastRenderKey: null,
+            lastRenderTime: 0,
+            minRenderIntervalMs: 1000, // 至少 1 秒内不重复渲染
+        };
+
+        // 生成渲染 key（用于去重比较）
+        function getRenderKey(result) {
+            const data = result.data || result.staleData;
+            const actionsKey = data && data.actions
+                ? data.actions.map(a => `${a.action}:${Math.round(a.frequency * 100)}`).join(',')
+                : 'none';
+            return `${result.status}|${result.source || 'none'}|${actionsKey}`;
+        }
+
+        // 检查是否应该渲染（去重 + 节流）
+        function shouldRender(result) {
+            const now = Date.now();
+            const renderKey = getRenderKey(result);
+
+            // 相同内容且间隔 < 1s：跳过
+            if (renderKey === uiState.lastRenderKey &&
+                (now - uiState.lastRenderTime) < uiState.minRenderIntervalMs) {
+                console.log('[UI] Skipped duplicate render:', renderKey);
+                return false;
+            }
+
+            uiState.lastRenderKey = renderKey;
+            uiState.lastRenderTime = now;
+            return true;
+        }
+
         async function queryStrategy() {
             const btn = document.getElementById('queryBtn');
             const resultDiv = document.getElementById('result');
@@ -444,6 +477,11 @@
         }
 
         function updateStrategyUI(result, position) {
+            // 去重检查
+            if (!shouldRender(result)) {
+                return;
+            }
+
             const statusLabel = document.getElementById('statusLabel');
             const adviceText = document.getElementById('adviceText');
             const statusReason = document.getElementById('statusReason');
@@ -453,7 +491,7 @@
             // 清除之前的样式
             adviceLine.className = 'advice-line';
 
-            // 状态标签映射
+            // 状态标签映射（未知状态默认 ERROR）
             const statusMap = {
                 'SUCCESS': { label: 'SUCCESS', class: 'success', reason: '' },
                 'MISS': { label: 'MISS', class: 'miss', reason: '策略未命中缓存' },
@@ -468,6 +506,7 @@
                 'ERROR': { label: 'ERROR', class: 'error', reason: '未知错误' },
             };
 
+            // 未知状态默认归为 ERROR
             const statusInfo = statusMap[result.status] || statusMap['ERROR'];
 
             // 设置状态标签
